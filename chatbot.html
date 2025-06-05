@@ -276,25 +276,58 @@
         // Google Sheets API設定
         const SHEETS_API_KEY = 'AIzaSyB7VghMOI8SejM0-n36xX_D8aidmcTzvJI'; // Google Sheets APIキーを入力
         const SPREADSHEET_ID = '1CGPg9S-x4hrzGjOa6CzyZ_XkGWFGyVGLD4LzEgQnRrY'; // スプレッドシートIDを入力
-        const SHEET_NAME = 'sheet 1'; // シート名（通常は'Sheet1'）
+        const SHEET_NAME = 'シート1'; // シート名（日本語の場合は'シート1'）
         const SHEETS_API_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME}?key=${SHEETS_API_KEY}`;
         
         // AI使用フラグ（true: Gemini API使用, false: ルールベース）
         let useAI = true;
         
         // PDF資料の動的管理
-        let pdfDocuments = {};
-        let lastPDFUpdate = 0;
+        let pdfDocuments = {
+            // 一時的にハードコーディング（後でスプレッドシートから読み込み）
+            "探究的な学び実践ガイド": {
+                url: "https://drive.google.com/file/d/xxxxx/view",
+                description: "松ノ木小学校での探究的な学びの実践方法をまとめたガイド",
+                keywords: ["探究", "実践", "ガイド", "方法"],
+                category: "実践資料",
+                summary: "探究的な学びを始めるための具体的なステップと実践例を紹介。教師の役割変化、環境整備、評価方法などを詳しく解説。"
+            },
+            "複線型授業の理論と実践": {
+                url: "https://drive.google.com/file/d/yyyyy/view",
+                description: "複線型授業の理論的背景と実践事例",
+                keywords: ["複線型", "理論", "授業", "事例"],
+                category: "理論資料",
+                summary: "複線型授業の教育学的意義と、松ノ木小での実践事例を紹介。個別最適な学びと協働的な学びの両立方法を解説。"
+            },
+            "3年生算数実践記録": {
+                url: "https://drive.google.com/file/d/zzzzz/view",
+                description: "3年生の算数における探究的な学びの実践記録",
+                keywords: ["算数", "3年生", "実践", "記録"],
+                category: "教科別実践",
+                summary: "面積の学習で、具体物コース、図形コース、公式コースの3つの学習経路を設定した実践。児童の選択と学びの深まりを記録。"
+            }
+        };
+        let lastPDFUpdate = Date.now();
         const PDF_CACHE_DURATION = 300000; // 5分間キャッシュ
         
-        // スプレッドシートからPDF情報を読み込む
+        // スプレッドシートからPDF情報を読み込む（CORS対応版）
         async function loadPDFDocuments() {
             try {
                 console.log('PDF情報を読み込み中...');
+                console.log('API URL:', SHEETS_API_URL);
+                
+                // CORSエラーを回避するため、まずは手動データを使用
+                console.log('現在は仮のPDFデータを使用しています');
+                console.log(`PDF情報を読み込みました: ${Object.keys(pdfDocuments).length}件`);
+                
+                // 後でCORS対応後に以下のコードを有効化
+                /*
                 const response = await fetch(SHEETS_API_URL);
                 
                 if (!response.ok) {
                     console.error('スプレッドシート読み込みエラー:', response.status);
+                    const errorText = await response.text();
+                    console.error('エラー詳細:', errorText);
                     return false;
                 }
                 
@@ -324,10 +357,12 @@
                 pdfDocuments = newPdfDocuments;
                 lastPDFUpdate = Date.now();
                 console.log(`PDF情報を読み込みました: ${Object.keys(pdfDocuments).length}件`);
+                */
                 return true;
                 
             } catch (error) {
                 console.error('PDF情報の読み込みエラー:', error);
+                console.error('エラーの詳細:', error.message);
                 return false;
             }
         }
