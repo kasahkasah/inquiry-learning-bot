@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>探究的な学び相談Bot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .chat-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: 500px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .bot-message {
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .bot-avatar {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+
+        .message-content {
+            background: #f0f0f0;
+            padding: 12px 16px;
+            border-radius: 18px;
+            max-width: 80%;
+        }
+
+        .user-message {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .user-message .message-content {
+            background: #667eea;
+            color: white;
+        }
+
+        .input-area {
+            border-top: 1px solid #e0e0e0;
+            padding: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-field {
+            flex: 1;
+            padding: 12px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .input-field:focus {
+            border-color: #667eea;
+        }
+
+        .send-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .send-button:hover {
+            transform: scale(1.05);
+        }
+
+        .send-button:active {
+            transform: scale(0.95);
+        }
+
+        .quick-questions {
+            margin-top: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .quick-questions h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .question-button {
+            display: inline-block;
+            margin: 5px;
+            padding: 8px 16px;
+            background: #f0f0f0;
+            border: 1px solid #e0e0e0;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+
+        .question-button:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        .typing-indicator {
+            display: none;
+            align-items: center;
+            padding: 10px;
+        }
+
+        .typing-indicator span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #667eea;
+            margin: 0 2px;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-10px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>探究的な学び相談Bot</h1>
+            <p>新しい学びのスタイルについて、お気軽にご質問ください</p>
+        </div>
+
+        <div class="chat-container">
+            <div class="messages" id="messages">
+                <div class="message bot-message">
+                    <div class="bot-avatar">Bot</div>
+                    <div class="message-content">
+                        こんにちは！探究的な学びや複線型授業について、どのようなことをお知りになりたいですか？
+                    </div>
+                </div>
+            </div>
+
+            <div class="typing-indicator" id="typingIndicator">
+                <div class="bot-avatar">Bot</div>
+                <div style="display: flex; align-items: center;">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <input 
+                    type="text" 
+                    class="input-field" 
+                    id="userInput" 
+                    placeholder="質問を入力してください..."
+                    onkeypress="handleKeyPress(event)"
+                >
+                <button class="send-button" onclick="sendMessage()">送信</button>
+            </div>
+        </div>
+
+        <div class="quick-questions">
+            <h3>よくある質問</h3>
+            <button class="question-button" onclick="askQuestion('探究的な学びとは何ですか？')">
+                探究的な学びとは？
+            </button>
+            <button class="question-button" onclick="askQuestion('複線型授業の特徴を教えてください')">
+                複線型授業の特徴
+            </button>
+            <button class="question-button" onclick="askQuestion('教師の役割はどう変わりますか？')">
+                教師の役割
+            </button>
+            <button class="question-button" onclick="askQuestion('具体的な実践例を見たいです')">
+                実践例
+            </button>
+            <button class="question-button" onclick="askQuestion('導入する際の注意点は？')">
+                導入の注意点
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 知識ベース（実際のAzure実装では、これはAzure FunctionsのAPIから取得）
+        const knowledgeBase = {
+            "探究的な学び": {
+                keywords: ["探究的", "探究", "学び", "とは", "何"],
+                response: "探究的な学びとは、子どもたちが自ら問いを立て、仮説を検証し、新たな知識を構築していく学習方法です。単に知識を受け取るのではなく、主体的に学びを深めていくことが特徴です。\n\n私たちの実践では、各教科において子どもたちが自分のペースで、自分の興味に応じて学習を進められる環境を整えています。"
+            },
+            "複線型授業": {
+                keywords: ["複線型", "授業", "特徴", "スタイル"],
+                response: "複線型授業は、一斉授業とは異なり、複数の学習経路を同時に展開する授業形態です。\n\n特徴として：\n・個々の理解度に応じた学習が可能\n・子どもたちが自分で学習計画を立てる\n・協働的な学びと個別学習の両立\n・多様な教材や方法の選択肢\n\nこれにより、すべての子どもが自分に適した方法で学習を深められます。"
+            },
+            "教師の役割": {
+                keywords: ["教師", "役割", "先生", "変わる", "どう"],
+                response: "新しい学びのスタイルでは、教師の役割が「教える人」から「学びを支援する人」へと変化します。\n\n具体的には：\n・個々の子どもの学習状況を把握し、適切な助言を提供\n・教科の見方・考え方を踏まえた専門的な支援\n・学習環境や教材の準備と整備\n・子どもたちの学びのプロセスを観察・記録\n\n実は、従来の一斉授業よりも高度な専門性と準備が必要となります。"
+            },
+            "実践例": {
+                keywords: ["実践", "例", "具体的", "事例", "どんな"],
+                response: "実際の授業例をご紹介します：\n\n【算数の例】\n面積の学習で、ある子は具体物を使って理解を深め、別の子は公式から応用問題に挑戦。教師は両方の子どもに適切な助言を提供。\n\n【国語の例】\n物語文の読解で、登場人物の心情を絵で表現する子、関係図を作る子、続きを創作する子など、多様なアプローチを認めています。\n\n詳しい実践動画や資料もご用意していますので、ぜひお問い合わせください。"
+            },
+            "導入の注意点": {
+                keywords: ["導入", "注意", "始める", "気をつける", "ポイント"],
+                response: "探究的な学びを導入する際の重要なポイントをお伝えします：\n\n1. **段階的な導入**：いきなり全面的に変えるのではなく、一部の単元から始める\n\n2. **教材研究の充実**：多様な学習に対応できる教材の準備が必要\n\n3. **保護者との連携**：新しい学習スタイルへの理解を得る\n\n4. **評価方法の見直し**：プロセスを重視した評価への転換\n\n5. **教員間の協力**：チームでの実践と振り返りが重要\n\n私たちの研究会では、導入支援のプログラムもご用意しています。"
+            }
+        };
+
+        // メッセージ送信関数
+        function sendMessage() {
+            const input = document.getElementById('userInput');
+            const message = input.value.trim();
+            
+            if (message === '') return;
+            
+            // ユーザーメッセージを表示
+            addMessage(message, 'user');
+            
+            // 入力をクリア
+            input.value = '';
+            
+            // タイピングインジケーターを表示
+            showTypingIndicator();
+            
+            // ボットの応答を生成（実際のAzure実装では、ここでAzure FunctionsのAPIを呼び出す）
+            setTimeout(() => {
+                const response = generateResponse(message);
+                hideTypingIndicator();
+                addMessage(response, 'bot');
+            }, 1000);
+        }
+
+        // レスポンス生成関数
+        function generateResponse(message) {
+            const lowerMessage = message.toLowerCase();
+            
+            // 知識ベースから最適な回答を探す
+            for (const [topic, data] of Object.entries(knowledgeBase)) {
+                const hasKeyword = data.keywords.some(keyword => 
+                    lowerMessage.includes(keyword)
+                );
+                
+                if (hasKeyword) {
+                    return data.response;
+                }
+            }
+            
+            // デフォルトの応答
+            return `ご質問ありがとうございます。「${message}」について、詳しくお答えしたいと思います。\n\nこの内容については、私たちの研究資料に詳細な情報がございます。具体的にどのような観点からお知りになりたいか、追加でお聞かせいただけますか？\n\nまた、実践動画や詳細な資料もご用意できますので、お気軽にお申し付けください。`;
+        }
+
+        // メッセージ追加関数
+        function addMessage(text, sender) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message`;
+            
+            if (sender === 'bot') {
+                messageDiv.innerHTML = `
+                    <div class="bot-avatar">Bot</div>
+                    <div class="message-content">${text.replace(/\n/g, '<br>')}</div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="message-content">${text}</div>
+                `;
+            }
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // クイック質問関数
+        function askQuestion(question) {
+            document.getElementById('userInput').value = question;
+            sendMessage();
+        }
+
+        // エンターキーでの送信
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // タイピングインジケーター表示/非表示
+        function showTypingIndicator() {
+            document.getElementById('typingIndicator').style.display = 'flex';
+            document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            document.getElementById('typingIndicator').style.display = 'none';
+        }
+
+        // Azure Functions APIの呼び出し例（実装時に使用）
+        async function callAzureFunction(message) {
+            try {
+                const response = await fetch('https://your-function-app.azurewebsites.net/api/chatbot', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                const data = await response.json();
+                return data.response;
+            } catch (error) {
+                console.error('API呼び出しエラー:', error);
+                return 'すみません、一時的にエラーが発生しました。もう一度お試しください。';
+            }
+        }
+    </script>
+</body>
+</html>
