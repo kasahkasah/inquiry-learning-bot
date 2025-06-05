@@ -273,8 +273,136 @@
         const GEMINI_API_KEY = 'YOUR_API_KEY_HERE'; // ここにAPIキーを入力
         const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
         
+        // Google Sheets API設定
+        const SHEETS_API_KEY = 'YOUR_SHEETS_API_KEY_HERE'; // Google Sheets APIキーを入力
+        const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE'; // スプレッドシートIDを入力
+        const SHEET_NAME = 'Sheet1'; // シート名（通常は'Sheet1'）
+        const SHEETS_API_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME}?key=${SHEETS_API_KEY}`;
+        
         // AI使用フラグ（true: Gemini API使用, false: ルールベース）
         let useAI = true;
+        
+        // PDF資料の動的管理
+        let pdfDocuments = {};
+        let lastPDFUpdate = 0;
+        const PDF_CACHE_DURATION = 300000; // 5分間キャッシュ
+        
+        // スプレッドシートからPDF情報を読み込む
+        async function loadPDFDocuments() {
+            try {
+                console.log('PDF情報を読み込み中...');
+                const response = await fetch(SHEETS_API_URL);
+                
+                if (!response.ok) {
+                    console.error('スプレッドシート読み込みエラー:', response.status);
+                    return false;
+                }
+                
+                const data = await response.json();
+                const rows = data.values;
+                
+                if (!rows || rows.length < 2) {
+                    console.log('PDF情報が見つかりません');
+                    return false;
+                }
+                
+                // ヘッダー行をスキップして、PDFデータを構造化
+                const newPdfDocuments = {};
+                for (let i = 1; i < rows.length; i++) {
+                    const [title, url, description, keywords, category, summary] = rows[i];
+                    if (title && url) {
+                        newPdfDocuments[title] = {
+                            url: url.trim(),
+                            description: description || '',
+                            keywords: keywords ? keywords.split(',').map(k => k.trim().toLowerCase()) : [],
+                            category: category || '未分類',
+                            summary: summary || ''
+                        };
+                    }
+                }
+                
+                pdfDocuments = newPdfDocuments;
+                lastPDFUpdate = Date.now();
+                console.log(`PDF情報を読み込みました: ${Object.keys(pdfDocuments).length}件`);
+                return true;
+                
+            } catch (error) {
+                console.error('PDF情報の読み込みエラー:', error);
+                return false;
+            }
+        }
+        
+        // キャッシュの有効期限をチェックして必要なら再読み込み
+        async function ensurePDFDocumentsLoaded() {
+            const now = Date.now();
+            if (Object.keys(pdfDocuments).length === 0 || now - lastPDFUpdate > PDF_CACHE_DURATION) {
+                await loadPDFDocuments();
+            }
+        }
+        
+        // 質問に関連するPDFを検索
+        async function findRelevantPDFs(query) {
+            await ensurePDFDocumentsLoaded();
+            
+            const queryLower = query.toLowerCase();
+            const relevantPDFs = [];
+            
+            for (const [title, doc] of Object.entries(pdfDocuments)) {
+                let relevanceScore = 0;
+                
+                // キーワードマッチング
+                doc.keywords.forEach(keyword => {
+                    if (queryLower.includes(keyword)) {
+                        relevanceScore += 2;
+                    }
+                });
+                
+                // タイトルマッチング
+                if (title.toLowerCase().includes(queryLower)) {
+                    relevanceScore += 3;
+                }
+                
+                // 説明文マッチング
+                if (doc.description.toLowerCase().includes(queryLower)) {
+                    relevanceScore += 1;
+                }
+                
+                // カテゴリマッチング
+                if (doc.category && queryLower.includes(doc.category.toLowerCase())) {
+                    relevanceScore += 1;
+                }
+                
+                if (relevanceScore > 0) {
+                    relevantPDFs.push({
+                        title,
+                        ...doc,
+                        relevanceScore
+                    });
+                }
+            }
+            
+            // 関連度でソートして上位5件を返す
+            relevantPDFs.sort((a, b) => b.relevanceScore - a.relevanceScore);
+            return relevantPDFs.slice(0, 5);
+        }
+        
+        // PDFから動的に知識の要約を生成
+        async function generatePDFKnowledgeSummary(query) {
+            const relevantPDFs = await findRelevantPDFs(query);
+            
+            if (relevantPDFs.length === 0) {
+                return "";
+            }
+            
+            let summary = "\n【関連資料からの情報】\n";
+            relevantPDFs.forEach(pdf => {
+                if (pdf.summary) {
+                    summary += `\n■ ${pdf.title}（${pdf.category}）\n${pdf.summary}\n`;
+                }
+            });
+            
+            return summary;
+        }
         
         // 知識ベース（AI接続エラー時のフォールバック用）
         const knowledgeBase = {
@@ -318,7 +446,7 @@
             
             try {
                 let response;
-                if (useAI && GEMINI_API_KEY !== 'YOUR_API_KEY_HERE') {
+                if (useAI && GEMINI_API_KEY !== 'AIzaSyB7VghMOI8SejM0-n36xX_D8aidmcTzvJI') {
                     // Gemini APIを使用
                     response = await generateAIResponse(message);
                 } else {
@@ -341,40 +469,34 @@
         async function generateAIResponse(message) {
             console.log('Gemini API を呼び出し中...');
             
+            // 動的にPDF情報から知識を生成
+            const pdfKnowledge = await generatePDFKnowledgeSummary(message);
+            const relevantPDFs = await findRelevantPDFs(message);
+            
             const requestBody = {
                 contents: [{
                     parts: [{
-                        text: `あなたは松ノ木小学校で実践している探究的な学びと複線型授業の専門家です。以下の知識に基づいて、教師からの質問に分かりやすく答えてください。
+                        text: `あなたは松ノ木小学校で実践している探究的な学びと複線型授業の専門家です。以下の知識とPDF資料の情報に基づいて、教師からの質問に分かりやすく答えてください。
 
-【探究的な学びとは】
-- 子どもたちが自ら問いを立て、仮説を検証し、新たな知識を構築する学習方法
-- 各教科で子どもたちが自分のペースで学習を進められる環境
-- 単に知識を受け取るのではなく、主体的に学びを深めていく
+${pdfKnowledge}
 
-【複線型授業とは】
-- 複数の学習経路を同時に展開する授業形態
-- 個々の理解度に応じた学習が可能
-- 協働的な学びと個別学習の両立
-- 多様な教材や方法の選択肢
-
-【教師の役割】
-- 「教える人」から「学びを支援する人」へ
-- 個々の子どもに適切な助言を提供
-- 教科の見方・考え方を踏まえた専門的支援
-- 高速で的確な助言により多くの児童の学びを深める
+【基本的な知識】
+- 探究的な学び：子どもたちが自ら問いを立て、仮説を検証し、新たな知識を構築する学習方法
+- 複線型授業：複数の学習経路を同時に展開する授業形態
+- 教師の役割：「教える人」から「学びを支援する人」へ
 
 【重要な注意】
-- 具体的な実践例を求められた場合は、「現在、松ノ木小学校での実践事例を整理中です」と答えてください
-- 知らないことは知らないと正直に答えてください
 - 回答は必ず異なる内容で、同じ回答を繰り返さないでください
+- 資料に基づいて具体的に答えてください
+- 知らないことは「その点については資料を確認中です」と正直に答えてください
 
 質問：${message}
 
-回答は400文字以内で、実践的にお答えください。質問に応じて異なる観点から回答してください。`
+回答は400文字以内で、実践的にお答えください。`
                     }]
                 }],
                 generationConfig: {
-                    temperature: 0.9,  // より多様な回答のため高めに設定
+                    temperature: 0.9,
                     topK: 40,
                     topP: 0.95,
                     maxOutputTokens: 1024,
@@ -400,7 +522,18 @@
                 
                 const data = await response.json();
                 console.log('AI応答を受信しました');
-                return data.candidates[0].content.parts[0].text;
+                
+                // AI応答に関連資料リンクを追加
+                let aiResponse = data.candidates[0].content.parts[0].text;
+                
+                if (relevantPDFs.length > 0) {
+                    aiResponse += "\n\n📄 **関連資料**：\n";
+                    relevantPDFs.forEach(pdf => {
+                        aiResponse += `・[${pdf.title}](${pdf.url}) - ${pdf.description}\n`;
+                    });
+                }
+                
+                return aiResponse;
             } catch (error) {
                 console.error('AI応答エラー:', error);
                 throw error;
@@ -444,9 +577,11 @@
             messageDiv.className = `message ${sender}-message`;
             
             if (sender === 'bot') {
+                // リンクを含むテキストをHTMLとして処理
+                const formattedText = formatMessageWithLinks(text);
                 messageDiv.innerHTML = `
                     <div class="bot-avatar">Bot</div>
-                    <div class="message-content">${text.replace(/\n/g, '<br>')}</div>
+                    <div class="message-content">${formattedText}</div>
                 `;
             } else {
                 messageDiv.innerHTML = `
@@ -456,6 +591,20 @@
             
             messagesDiv.appendChild(messageDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        // マークダウン形式のリンクをHTMLリンクに変換
+        function formatMessageWithLinks(text) {
+            // 改行を<br>に変換
+            let formatted = text.replace(/\n/g, '<br>');
+            
+            // [テキスト](URL) 形式のリンクをHTMLリンクに変換
+            formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #667eea; text-decoration: underline;">$1</a>');
+            
+            // **テキスト** を太字に変換
+            formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            
+            return formatted;
         }
 
         // クイック質問関数
@@ -487,16 +636,21 @@
         }
         
         // APIキー設定確認とUI表示
-        window.onload = function() {
-            if (GEMINI_API_KEY === 'AIzaSyAocqLkMQah62nLQ7Z_EO_ThVr3FTgw0OE') {
+        window.onload = async function() {
+            // PDF情報を初期読み込み
+            if (SHEETS_API_KEY !== 'シート1' && SPREADSHEET_ID !== '1CGPg9S-x4hrzGjOa6CzyZ_XkGWFGyVGLD4LzEgQnRrY') {
+                const loaded = await loadPDFDocuments();
+                if (loaded) {
+                    console.log('PDF情報の読み込みに成功しました');
+                }
+            }
+            
+            if (GEMINI_API_KEY === 'YOUR_API_KEY_HERE') {
                 addMessage('ℹ️ 現在はルールベースモードで動作しています。Gemini APIキーを設定するとAI応答が有効になります。', 'bot');
                 useAI = false;
             } else {
                 addMessage('🤖 AI応答モードで動作中です。より自然な対話をお楽しみください！', 'bot');
                 console.log('Gemini API キーが設定されています');
-                // ブラウザのコンソールでデバッグ情報を確認
-                console.log('API URL:', GEMINI_API_URL);
-                console.log('API Key length:', GEMINI_API_KEY.length);
             }
         }
     </script>
