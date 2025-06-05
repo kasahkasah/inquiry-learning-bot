@@ -446,7 +446,7 @@
             
             try {
                 let response;
-                if (useAI && GEMINI_API_KEY !== 'AIzaSyB7VghMOI8SejM0-n36xX_D8aidmcTzvJI') {
+                if (useAI && GEMINI_API_KEY !== 'YOUR_API_KEY_HERE') {
                     // Gemini APIを使用
                     response = await generateAIResponse(message);
                 } else {
@@ -638,14 +638,14 @@ ${pdfKnowledge}
         // APIキー設定確認とUI表示
         window.onload = async function() {
             // PDF情報を初期読み込み
-            if (SHEETS_API_KEY !== 'シート1' && SPREADSHEET_ID !== '1CGPg9S-x4hrzGjOa6CzyZ_XkGWFGyVGLD4LzEgQnRrY') {
+            if (SHEETS_API_KEY !== 'AIzaSyB7VghMOI8SejM0-n36xX_D8aidmcTzvJI' && SPREADSHEET_ID !== '1CGPg9S-x4hrzGjOa6CzyZ_XkGWFGyVGLD4LzEgQnRrY') {
                 const loaded = await loadPDFDocuments();
                 if (loaded) {
                     console.log('PDF情報の読み込みに成功しました');
                 }
             }
             
-            if (GEMINI_API_KEY === 'YOUR_API_KEY_HERE') {
+            if (GEMINI_API_KEY === 'AIzaSyAocqLkMQah62nLQ7Z_EO_ThVr3FTgw0OE') {
                 addMessage('ℹ️ 現在はルールベースモードで動作しています。Gemini APIキーを設定するとAI応答が有効になります。', 'bot');
                 useAI = false;
             } else {
