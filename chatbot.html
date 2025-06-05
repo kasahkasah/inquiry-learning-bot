@@ -270,13 +270,13 @@
     <script>
         // Google Gemini API設定
         // APIキーは https://makersuite.google.com/app/apikey で取得
-        const GEMINI_API_KEY = 'YOUR_API_KEY_HERE'; // ここにAPIキーを入力
+        const GEMINI_API_KEY = 'AIzaSyAocqLkMQah62nLQ7Z_EO_ThVr3FTgw0OE'; // ここにAPIキーを入力
         const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
         
         // Google Sheets API設定
-        const SHEETS_API_KEY = 'YOUR_SHEETS_API_KEY_HERE'; // Google Sheets APIキーを入力
-        const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE'; // スプレッドシートIDを入力
-        const SHEET_NAME = 'Sheet1'; // シート名（通常は'Sheet1'）
+        const SHEETS_API_KEY = 'AIzaSyB7VghMOI8SejM0-n36xX_D8aidmcTzvJI'; // Google Sheets APIキーを入力
+        const SPREADSHEET_ID = '1CGPg9S-x4hrzGjOa6CzyZ_XkGWFGyVGLD4LzEgQnRrY'; // スプレッドシートIDを入力
+        const SHEET_NAME = 'シート1'; // シート名（通常は'Sheet1'）
         const SHEETS_API_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME}?key=${SHEETS_API_KEY}`;
         
         // AI使用フラグ（true: Gemini API使用, false: ルールベース）
@@ -638,14 +638,14 @@ ${pdfKnowledge}
         // APIキー設定確認とUI表示
         window.onload = async function() {
             // PDF情報を初期読み込み
-            if (SHEETS_API_KEY !== 'AIzaSyB7VghMOI8SejM0-n36xX_D8aidmcTzvJI' && SPREADSHEET_ID !== '1CGPg9S-x4hrzGjOa6CzyZ_XkGWFGyVGLD4LzEgQnRrY') {
+            if (SHEETS_API_KEY !== 'YOUR_SHEETS_API_KEY_HERE' && SPREADSHEET_ID !== 'YOUR_SPREADSHEET_ID_HERE') {
                 const loaded = await loadPDFDocuments();
                 if (loaded) {
                     console.log('PDF情報の読み込みに成功しました');
                 }
             }
             
-            if (GEMINI_API_KEY === 'AIzaSyAocqLkMQah62nLQ7Z_EO_ThVr3FTgw0OE') {
+            if (GEMINI_API_KEY === 'YOUR_API_KEY_HERE') {
                 addMessage('ℹ️ 現在はルールベースモードで動作しています。Gemini APIキーを設定するとAI応答が有効になります。', 'bot');
                 useAI = false;
             } else {
